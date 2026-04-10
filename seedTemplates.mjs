@@ -1,0 +1,88 @@
+        makeTextbox("B.S. Computer Science — Stanford University\nGraduated 2020, Magna Cum Laude", { left: 150, top: 1280, width: 2250, fontSize: 26, fill: "#475569", fontFamily: "Inter", lineHeight: 1.6 }),
+        makeTextbox("SKILLS", { left: 150, top: 1520, width: 2250, fontSize: 28, fontWeight: "bold", fill: "#1e293b", fontFamily: "Montserrat" }),
+        makeRect({ left: 150, top: 1600, width: 300, height: 45, fill: "#f1f5f9", rx: 22, ry: 22 }),
+        makeTextbox("React", { left: 150, top: 1608, width: 300, fontSize: 22, fill: "#334155", textAlign: "center", fontFamily: "Inter" }),
+        makeRect({ left: 480, top: 1600, width: 300, height: 45, fill: "#f1f5f9", rx: 22, ry: 22 }),
+        makeTextbox("TypeScript", { left: 480, top: 1608, width: 300, fontSize: 22, fill: "#334155", textAlign: "center", fontFamily: "Inter" }),
+        makeRect({ left: 810, top: 1600, width: 300, height: 45, fill: "#f1f5f9", rx: 22, ry: 22 }),
+        makeTextbox("Node.js", { left: 810, top: 1608, width: 300, fontSize: 22, fill: "#334155", textAlign: "center", fontFamily: "Inter" }),
+      ],
+      background: "#ffffff",
+    },
+  },
+
+  // ─── Presentation Templates ────────────────────────────
+  {
+    name: "Startup Pitch Deck",
+    description: "Modern pitch deck for startups",
+    category: "presentation",
+    subcategory: "pitch",
+    canvasWidth: 1920,
+    canvasHeight: 1080,
+    tags: ["presentation", "pitch", "startup", "business"],
+    canvasData: {
+      version: "6.6.1",
+      objects: [
+        makeRect({ left: 0, top: 0, width: 1920, height: 1080, fill: "#0f172a" }),
+        makeRect({ left: 0, top: 0, width: 960, height: 1080, fill: "#1e293b" }),
+        makeCircle({ left: 100, top: 100, radius: 40, fill: "#6366f1" }),
+        makeTextbox("STARTUP", { left: 200, top: 110, width: 400, fontSize: 24, fontWeight: "bold", fill: "#ffffff", fontFamily: "Montserrat" }),
+        makeTextbox("Revolutionizing\nthe way people\nwork together", { left: 100, top: 300, width: 760, fontSize: 56, fontWeight: "bold", fill: "#ffffff", fontFamily: "Montserrat", lineHeight: 1.2 }),
+        makeTextbox("Pitch Deck 2026", { left: 100, top: 600, width: 760, fontSize: 24, fill: "#94a3b8", fontFamily: "Inter" }),
+        makeRect({ left: 100, top: 700, width: 250, height: 55, fill: "#6366f1", rx: 28, ry: 28 }),
+        makeTextbox("Get Started", { left: 100, top: 715, width: 250, fontSize: 18, fontWeight: "600", fill: "#ffffff", textAlign: "center", fontFamily: "Inter" }),
+      ],
+      background: "#0f172a",
+    },
+  },
+
+  // ─── Promotional Templates ─────────────────────────────
+  {
+    name: "Product Launch",
+    description: "Bold product launch announcement",
+    category: "promotional",
+    subcategory: "product",
+    canvasWidth: 1080,
+    canvasHeight: 1080,
+    tags: ["product", "launch", "announcement", "bold"],
+    canvasData: {
+      version: "6.6.1",
+      objects: [
+        makeRect({ left: 0, top: 0, width: 1080, height: 1080, fill: "#000000" }),
+        makeCircle({ left: 290, top: 200, radius: 250, fill: "#ffffff", opacity: 0.05 }),
+        makeTextbox("NEW", { left: 80, top: 100, width: 920, fontSize: 24, fontWeight: "600", fill: "#fbbf24", fontFamily: "Inter" }),
+        makeTextbox("PRODUCT\nLAUNCH", { left: 80, top: 160, width: 920, fontSize: 96, fontWeight: "bold", fill: "#ffffff", fontFamily: "Montserrat", lineHeight: 1.1 }),
+        makeRect({ left: 80, top: 420, width: 100, height: 4, fill: "#fbbf24" }),
+        makeTextbox("Introducing our latest innovation.\nDesigned for the future.", { left: 80, top: 470, width: 920, fontSize: 28, fill: "#a0a0a0", fontFamily: "Inter", lineHeight: 1.5 }),
+        makeRect({ left: 80, top: 650, width: 280, height: 55, fill: "#fbbf24", rx: 28, ry: 28 }),
+        makeTextbox("PRE-ORDER", { left: 80, top: 665, width: 280, fontSize: 18, fontWeight: "bold", fill: "#000000", textAlign: "center", fontFamily: "Inter" }),
+      ],
+      background: "#000000",
+    },
+  },
+  {
+    name: "Summer Sale Banner",
+    description: "Bright summer sale promotional banner",
+    category: "promotional",
+    subcategory: "sale",
+    canvasWidth: 1200,
+    canvasHeight: 627,
+    tags: ["sale", "summer", "promotional", "discount"],
+    canvasData: {
+      version: "6.6.1",
+      objects: [
+        makeRect({ left: 0, top: 0, width: 1200, height: 627, fill: "#fef3c7" }),
+        makeCircle({ left: 900, top: -50, radius: 200, fill: "#f59e0b", opacity: 0.3 }),
+        makeCircle({ left: 1000, top: 400, radius: 150, fill: "#ef4444", opacity: 0.2 }),
+        makeTextbox("SUMMER", { left: 60, top: 80, width: 600, fontSize: 80, fontWeight: "bold", fill: "#92400e", fontFamily: "Montserrat" }),
+        makeTextbox("SALE", { left: 60, top: 180, width: 600, fontSize: 120, fontWeight: "bold", fill: "#dc2626", fontFamily: "Montserrat" }),
+        makeTextbox("Up to 70% off on selected items", { left: 60, top: 340, width: 600, fontSize: 24, fill: "#78350f", fontFamily: "Inter" }),
+        makeRect({ left: 60, top: 420, width: 220, height: 50, fill: "#dc2626", rx: 25, ry: 25 }),
+        makeTextbox("SHOP NOW", { left: 60, top: 432, width: 220, fontSize: 18, fontWeight: "600", fill: "#ffffff", textAlign: "center", fontFamily: "Inter" }),
+      ],
+      background: "#fef3c7",
+    },
+  },
+];
+
+export default templates;
