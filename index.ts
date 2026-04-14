@@ -38,6 +38,125 @@ async function startServer() {
   // OAuth callback under /api/oauth/callback
   registerOAuthRoutes(app);
 
+  // ─── Stripe Webhook (must be before body parser for raw body) ───
+  app.post("/api/stripe/webhook", express.raw({ type: "application/json" }), async (req, res) => {
+    const sig = req.headers["stripe-signature"] as string;
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+    if (!webhookSecret) {
+      console.warn("[Stripe] STRIPE_WEBHOOK_SECRET not set");
+      return res.status(400).json({ error: "Webhook secret not configured" });
+    }
+    try {
+      const { constructWebhookEvent, getPlanFromPriceId } = await import("../stripe");
+      const event = constructWebhookEvent(req.body, sig, webhookSecret);
+      const dbModule = await import("../db");
+
+      switch (event.type) {
+        case "checkout.session.completed": {
+          const session = event.data.object as any;
+          const userId = parseInt(session.metadata?.userId || "0");
+          const plan = session.metadata?.plan || "pro";
+          const customerId = session.customer as string;
+          if (userId) {
+            await dbModule.updateUserPlan(userId, plan, customerId);
+            const subId = session.subscription as string;
+            if (subId) {
+              await dbModule.upsertSubscriptionByStripeCustomer(customerId, {
+                userId,
+                stripeSubscriptionId: subId,
+                plan: plan as any,
+                status: "active",
+              });
+            }
+            await dbModule.logActivity({
+              userId,
+              type: "profile_updated",
+              description: `Subscribed to ${plan} plan`,
+            });
+          }
+          break;
+        }
+        case "customer.subscription.updated": {
+          const sub = event.data.object as any;
+          const customerId = sub.customer as string;
+          const priceId = sub.items?.data?.[0]?.price?.id || "";
+          const plan = getPlanFromPriceId(priceId);
+          const user = await dbModule.getUserByStripeCustomerId(customerId);
+          if (user) {
+            await dbModule.updateUserPlan(user.id, plan);
+          }
+          await dbModule.upsertSubscriptionByStripeCustomer(customerId, {
+            userId: user?.id || 0,
+            stripeSubscriptionId: sub.id,
+            stripePriceId: priceId,
+            plan: plan as any,
+            status: sub.status as any,
+            currentPeriodStart: sub.current_period_start ? new Date(sub.current_period_start * 1000) : undefined,
+            currentPeriodEnd: sub.current_period_end ? new Date(sub.current_period_end * 1000) : undefined,
+            cancelAtPeriodEnd: sub.cancel_at_period_end || false,
+            canceledAt: sub.canceled_at ? new Date(sub.canceled_at * 1000) : undefined,
+          });
+          break;
+        }
+        case "customer.subscription.deleted": {
+          const sub = event.data.object as any;
+          const customerId = sub.customer as string;
+          const user = await dbModule.getUserByStripeCustomerId(customerId);
+          if (user) {
+            await dbModule.updateUserPlan(user.id, "free");
+          }
+          await dbModule.upsertSubscriptionByStripeCustomer(customerId, {
+            userId: user?.id || 0,
+            plan: "free" as any,
+            status: "canceled" as any,
+            canceledAt: new Date(),
+          });
+          break;
+        }
+        case "invoice.payment_succeeded": {
+          const invoice = event.data.object as any;
+          const customerId = invoice.customer as string;
+          const user = await dbModule.getUserByStripeCustomerId(customerId);
+          if (user) {
+            await dbModule.createPayment({
+              userId: user.id,
+              stripeInvoiceId: invoice.id,
+              stripePaymentIntentId: invoice.payment_intent as string || undefined,
+              amount: invoice.amount_paid || 0,
+              currency: invoice.currency || "usd",
+              status: "succeeded" as any,
+              description: `Invoice ${invoice.number || invoice.id}`,
+              receiptUrl: invoice.hosted_invoice_url || undefined,
+            });
+          }
+          break;
+        }
+        case "invoice.payment_failed": {
+          const invoice = event.data.object as any;
+          const customerId = invoice.customer as string;
+          const user = await dbModule.getUserByStripeCustomerId(customerId);
+          if (user) {
+            await dbModule.createPayment({
+              userId: user.id,
+              stripeInvoiceId: invoice.id,
+              amount: invoice.amount_due || 0,
+              currency: invoice.currency || "usd",
+              status: "failed" as any,
+              description: `Failed payment for invoice ${invoice.number || invoice.id}`,
+            });
+          }
+          break;
+        }
+        default:
+          console.log(`[Stripe] Unhandled event type: ${event.type}`);
+      }
+      return res.json({ received: true });
+    } catch (err: any) {
+      console.error("[Stripe] Webhook error:", err.message);
+      return res.status(400).json({ error: err.message });
+    }
+  });
+
   // File upload endpoint (accepts base64 body)
   app.post("/api/upload", async (req, res) => {
     try {

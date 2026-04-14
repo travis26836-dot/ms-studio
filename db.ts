@@ -13,6 +13,8 @@ import {
   userActivity, InsertUserActivity,
   projectFolders, InsertProjectFolder,
   aiChatSessions, InsertAiChatSession,
+  subscriptions, InsertSubscription,
+  payments, InsertPayment,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -439,4 +441,126 @@ export async function deleteChatSession(id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   await db.delete(aiChatSessions).where(eq(aiChatSessions.id, id));
+}
+
+// ─── Subscription Queries ───────────────────────────────────
+
+export async function getUserSubscription(userId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(subscriptions)
+    .where(eq(subscriptions.userId, userId))
+    .orderBy(desc(subscriptions.updatedAt))
+    .limit(1);
+  return result[0];
+}
+
+export async function getSubscriptionByStripeCustomerId(stripeCustomerId: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(subscriptions)
+    .where(eq(subscriptions.stripeCustomerId, stripeCustomerId))
+    .limit(1);
+  return result[0];
+}
+
+export async function getSubscriptionByStripeSubId(stripeSubscriptionId: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(subscriptions)
+    .where(eq(subscriptions.stripeSubscriptionId, stripeSubscriptionId))
+    .limit(1);
+  return result[0];
+}
+
+export async function createSubscription(data: InsertSubscription) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(subscriptions).values(data);
+  return { id: result[0].insertId };
+}
+
+export async function updateSubscription(id: number, data: Partial<InsertSubscription>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(subscriptions).set(data).where(eq(subscriptions.id, id));
+}
+
+export async function upsertSubscriptionByStripeCustomer(
+  stripeCustomerId: string,
+  data: Partial<InsertSubscription>,
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const existing = await getSubscriptionByStripeCustomerId(stripeCustomerId);
+  if (existing) {
+    await db.update(subscriptions).set(data).where(eq(subscriptions.id, existing.id));
+    return existing.id;
+  } else {
+    const result = await db.insert(subscriptions).values({
+      ...data,
+      stripeCustomerId,
+      userId: data.userId || 0,
+    } as InsertSubscription);
+    return result[0].insertId;
+  }
+}
+
+export async function updateUserPlan(userId: number, plan: string, stripeCustomerId?: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const updateData: Record<string, unknown> = { plan };
+  if (stripeCustomerId) updateData.stripeCustomerId = stripeCustomerId;
+  await db.update(users).set(updateData).where(eq(users.id, userId));
+}
+
+export async function getUserByStripeCustomerId(stripeCustomerId: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(users)
+    .where(eq(users.stripeCustomerId, stripeCustomerId))
+    .limit(1);
+  return result[0];
+}
+
+// ─── Payment Queries ────────────────────────────────────────
+
+export async function createPayment(data: InsertPayment) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(payments).values(data);
+  return { id: result[0].insertId };
+}
+
+export async function getUserPayments(userId: number, limit = 20) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(payments)
+    .where(eq(payments.userId, userId))
+    .orderBy(desc(payments.createdAt))
+    .limit(limit);
+}
+
+export async function getMonthlyUsage(userId: number) {
+  const db = await getDb();
+  if (!db) return { exports: 0, aiGenerations: 0, aiMessages: 0, publishes: 0 };
+  
+  const startOfMonth = new Date();
+  startOfMonth.setDate(1);
+  startOfMonth.setHours(0, 0, 0, 0);
+  
+  const [aiCount] = await db.select({ count: count() }).from(aiGenerations)
+    .where(and(eq(aiGenerations.userId, userId), sql`${aiGenerations.createdAt} >= ${startOfMonth}`));
+  const [publishCount] = await db.select({ count: count() }).from(publishHistory)
+    .where(and(eq(publishHistory.userId, userId), sql`${publishHistory.createdAt} >= ${startOfMonth}`));
+  const [socialCount] = await db.select({ count: count() }).from(socialConnections)
+    .where(eq(socialConnections.userId, userId));
+  
+  return {
+    exports: 0, // TODO: track exports separately
+    aiGenerations: aiCount?.count || 0,
+    aiMessages: 0, // TODO: track from chat sessions
+    publishes: publishCount?.count || 0,
+    socialConnections: socialCount?.count || 0,
+  };
 }

@@ -28,8 +28,18 @@ import AIChatPanel from "@/components/AIChatPanel";
 import BrandKitPanel from "@/components/BrandKitPanel";
 import SocialMediaPanel from "@/components/SocialMediaPanel";
 import AIElementsPanel from "@/components/AIElementsPanel";
+import UpgradePrompt, { FeatureGate, ProBadge } from "@/components/UpgradePrompt";
+import { useSubscription } from "@/hooks/useSubscription";
+// Crown already available via UpgradePrompt; Lock already imported above
 
 type SidebarPanel = "templates" | "elements" | "text" | "uploads" | "photos" | "ai" | "brand" | "social" | "ai-elements" | "layers" | null;
+
+// Feature gate mapping: which panels require which features
+const PANEL_FEATURE_GATES: Partial<Record<SidebarPanel, { feature: string; label: string }>> = {
+  "brand": { feature: "advancedBrandKit", label: "Advanced Brand Kit" },
+  "social": { feature: "socialMediaPublishing", label: "Social Media Publishing" },
+  "ai-elements": { feature: "aiImageGeneration", label: "AI Element Generation" },
+};
 
 interface EditorProps {
   projectId?: number;
@@ -52,6 +62,8 @@ export default function Editor({
   const [showChat, setShowChat] = useState(false);
   const [currentProjectId, setCurrentProjectId] = useState<number | undefined>(projectId);
   const { user } = useAuth();
+  const { canUse, plan, isFree, isPro } = useSubscription();
+  const [showUpgradePrompt, setShowUpgradePrompt] = useState<{ feature: string; label: string } | null>(null);
 
   const saveMutation = trpc.projects.save.useMutation();
   const createMutation = trpc.projects.create.useMutation();
@@ -227,10 +239,19 @@ export default function Editor({
           <SidebarIcon icon={Type} label="Text" active={activePanel === "text"} onClick={() => togglePanel("text")} />
           <SidebarIcon icon={ImageIcon} label="Photos" active={activePanel === "photos"} onClick={() => togglePanel("photos")} />
           <SidebarIcon icon={Upload} label="Uploads" active={activePanel === "uploads"} onClick={() => togglePanel("uploads")} />
-          <SidebarIcon icon={Palette} label="Brand" active={activePanel === "brand"} onClick={() => togglePanel("brand")} />
-          <SidebarIcon icon={Share2} label="Social" active={activePanel === "social"} onClick={() => togglePanel("social")} />
+          <SidebarIcon icon={Palette} label="Brand" active={activePanel === "brand"} onClick={() => {
+            if (isFree && PANEL_FEATURE_GATES.brand) { setShowUpgradePrompt(PANEL_FEATURE_GATES.brand); return; }
+            togglePanel("brand");
+          }} badge={isFree ? "PRO" : undefined} />
+          <SidebarIcon icon={Share2} label="Social" active={activePanel === "social"} onClick={() => {
+            if (isFree && PANEL_FEATURE_GATES.social) { setShowUpgradePrompt(PANEL_FEATURE_GATES.social); return; }
+            togglePanel("social");
+          }} badge={isFree ? "PRO" : undefined} />
           <SidebarIcon icon={Sparkles} label="AI Tools" active={activePanel === "ai"} onClick={() => togglePanel("ai")} />
-          <SidebarIcon icon={Wand2} label="AI Gen" active={activePanel === "ai-elements"} onClick={() => togglePanel("ai-elements")} />
+          <SidebarIcon icon={Wand2} label="AI Gen" active={activePanel === "ai-elements"} onClick={() => {
+            if (isFree && PANEL_FEATURE_GATES["ai-elements"]) { setShowUpgradePrompt(PANEL_FEATURE_GATES["ai-elements"]!); return; }
+            togglePanel("ai-elements");
+          }} badge={isFree ? "PRO" : undefined} />
           <SidebarIcon icon={Layers} label="Layers" active={activePanel === "layers"} onClick={() => togglePanel("layers")} />
         </div>
 
@@ -358,6 +379,18 @@ export default function Editor({
           </div>
         )}
       </div>
+
+      {/* Upgrade Prompt Dialog */}
+      {showUpgradePrompt && (
+        <UpgradePrompt
+          feature={showUpgradePrompt.label}
+          requiredPlan="pro"
+          currentPlan={plan}
+          open={true}
+          onClose={() => setShowUpgradePrompt(null)}
+          variant="dialog"
+        />
+      )}
     </div>
   );
 }
@@ -387,20 +420,26 @@ function ToolbarButton({ icon: Icon, tooltip, onClick, active }: {
 }
 
 // ─── Sidebar Icon ────────────────────────────────────────────
-function SidebarIcon({ icon: Icon, label, active, onClick }: {
+function SidebarIcon({ icon: Icon, label, active, onClick, badge }: {
   icon: React.ElementType;
   label: string;
   active: boolean;
   onClick: () => void;
+  badge?: string;
 }) {
   return (
     <button
       onClick={onClick}
-      className={`w-12 h-12 flex flex-col items-center justify-center rounded-lg text-xs gap-0.5 transition-colors
+      className={`relative w-12 h-12 flex flex-col items-center justify-center rounded-lg text-xs gap-0.5 transition-colors
         ${active ? "bg-primary/20 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground"}`}
     >
       <Icon className="w-5 h-5" />
       <span className="text-[10px] leading-tight">{label}</span>
+      {badge && (
+        <span className="absolute top-0.5 right-0.5 text-[7px] font-bold px-1 py-0 rounded bg-primary/20 text-primary leading-tight">
+          {badge}
+        </span>
+      )}
     </button>
   );
 }

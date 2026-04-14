@@ -7,6 +7,11 @@ import {
   CANVAS_PRESETS, PLATFORM_GROUPS, COLOR_PALETTE_PRESETS,
   FONT_COLLECTION, FONT_PAIRINGS, AI_CAPABILITIES,
 } from "@shared/designTypes";
+import {
+  PRICING_PLANS, getPlanLimits, getPlanFeatures,
+  isFeatureAvailable, checkFeatureGate, checkLimitGate,
+} from "@shared/subscriptionTypes";
+import * as stripeLib from "./stripe";
 
 // ═══════════════════════════════════════════════════════════════
 // MAIN APP ROUTER — ManuScript Studio v2.0
@@ -1152,6 +1157,166 @@ ${typeof input.canvasData === "string" ? input.canvasData : JSON.stringify(input
   presets: router({
     canvasPresets: publicProcedure.query(() => CANVAS_PRESETS),
     platformGroups: publicProcedure.query(() => PLATFORM_GROUPS),
+  }),
+
+  // ─── Billing & Subscriptions (Stripe) ─────────────────────
+  billing: router({
+    // Get current subscription info
+    subscription: protectedProcedure.query(async ({ ctx }) => {
+      const sub = await db.getUserSubscription(ctx.user.id);
+      return {
+        plan: (ctx.user.plan as "free" | "pro" | "business") || "free",
+        status: sub?.status || "active",
+        currentPeriodEnd: sub?.currentPeriodEnd?.toISOString() || null,
+        cancelAtPeriodEnd: sub?.cancelAtPeriodEnd || false,
+        trialEnd: sub?.trialEnd?.toISOString() || null,
+        stripeCustomerId: ctx.user.stripeCustomerId || null,
+        stripeSubscriptionId: sub?.stripeSubscriptionId || null,
+      };
+    }),
+
+    // Get pricing plans
+    plans: publicProcedure.query(() => {
+      return Object.values(PRICING_PLANS).map(p => ({
+        id: p.id,
+        name: p.name,
+        tagline: p.tagline,
+        monthlyPrice: p.monthlyPrice,
+        yearlyPrice: p.yearlyPrice,
+        monthlyPriceId: p.monthlyPriceId,
+        yearlyPriceId: p.yearlyPriceId,
+        highlights: p.highlights,
+        badge: p.badge,
+        color: p.color,
+        limits: p.limits,
+        features: p.features,
+      }));
+    }),
+
+    // Create Stripe Checkout session
+    createCheckout: protectedProcedure
+      .input(z.object({
+        priceId: z.string(),
+        plan: z.enum(["pro", "business"]),
+        billingCycle: z.enum(["monthly", "yearly"]),
+        successUrl: z.string().optional(),
+        cancelUrl: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (!stripeLib.isStripeConfigured()) {
+          throw new Error("Stripe is not configured. Please set STRIPE_SECRET_KEY.");
+        }
+        // Get or create Stripe customer
+        const customerId = await stripeLib.getOrCreateStripeCustomer(
+          ctx.user.id,
+          ctx.user.email,
+          ctx.user.name,
+          ctx.user.stripeCustomerId,
+        );
+        // Save customer ID to user
+        await db.updateUserPlan(ctx.user.id, ctx.user.plan || "free", customerId);
+
+        const successUrl = input.successUrl || `${process.env.APP_URL || ""}/dashboard?billing=success`;
+        const cancelUrl = input.cancelUrl || `${process.env.APP_URL || ""}/pricing?billing=canceled`;
+
+        const checkoutUrl = await stripeLib.createCheckoutSession(
+          customerId,
+          input.priceId,
+          input.plan,
+          successUrl,
+          cancelUrl,
+          ctx.user.id,
+        );
+        return { url: checkoutUrl };
+      }),
+
+    // Create Stripe Billing Portal session
+    createPortalSession: protectedProcedure
+      .input(z.object({
+        returnUrl: z.string().optional(),
+      }).optional())
+      .mutation(async ({ ctx, input }) => {
+        if (!stripeLib.isStripeConfigured()) {
+          throw new Error("Stripe is not configured.");
+        }
+        if (!ctx.user.stripeCustomerId) {
+          throw new Error("No billing account found. Please subscribe to a plan first.");
+        }
+        const returnUrl = input?.returnUrl || `${process.env.APP_URL || ""}/dashboard`;
+        const portalUrl = await stripeLib.createBillingPortalSession(
+          ctx.user.stripeCustomerId,
+          returnUrl,
+        );
+        return { url: portalUrl };
+      }),
+
+    // Cancel subscription
+    cancelSubscription: protectedProcedure
+      .input(z.object({
+        immediately: z.boolean().optional(),
+      }).optional())
+      .mutation(async ({ ctx, input }) => {
+        const sub = await db.getUserSubscription(ctx.user.id);
+        if (!sub?.stripeSubscriptionId) {
+          throw new Error("No active subscription found.");
+        }
+        await stripeLib.cancelSubscription(
+          sub.stripeSubscriptionId,
+          input?.immediately || false,
+        );
+        if (input?.immediately) {
+          await db.updateUserPlan(ctx.user.id, "free");
+          await db.updateSubscription(sub.id, {
+            status: "canceled",
+            canceledAt: new Date(),
+          });
+        } else {
+          await db.updateSubscription(sub.id, {
+            cancelAtPeriodEnd: true,
+          });
+        }
+        return { success: true };
+      }),
+
+    // Resume a canceled subscription
+    resumeSubscription: protectedProcedure.mutation(async ({ ctx }) => {
+      const sub = await db.getUserSubscription(ctx.user.id);
+      if (!sub?.stripeSubscriptionId) {
+        throw new Error("No subscription found.");
+      }
+      await stripeLib.resumeSubscription(sub.stripeSubscriptionId);
+      await db.updateSubscription(sub.id, { cancelAtPeriodEnd: false });
+      return { success: true };
+    }),
+
+    // Get payment history
+    payments: protectedProcedure.query(async ({ ctx }) => {
+      return db.getUserPayments(ctx.user.id);
+    }),
+
+    // Get usage stats for the current billing period
+    usage: protectedProcedure.query(async ({ ctx }) => {
+      const usage = await db.getMonthlyUsage(ctx.user.id);
+      const plan = (ctx.user.plan as "free" | "pro" | "business") || "free";
+      const limits = getPlanLimits(plan);
+      return { usage, limits, plan };
+    }),
+
+    // Check if a specific feature is available for the user
+    checkFeature: protectedProcedure
+      .input(z.object({ feature: z.string() }))
+      .query(({ ctx, input }) => {
+        const plan = (ctx.user.plan as "free" | "pro" | "business") || "free";
+        return checkFeatureGate(plan, input.feature as any);
+      }),
+
+    // Check if a usage limit is exceeded
+    checkLimit: protectedProcedure
+      .input(z.object({ limitKey: z.string(), currentUsage: z.number() }))
+      .query(({ ctx, input }) => {
+        const plan = (ctx.user.plan as "free" | "pro" | "business") || "free";
+        return checkLimitGate(plan, input.limitKey as any, input.currentUsage);
+      }),
   }),
 });
 

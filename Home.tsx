@@ -25,6 +25,9 @@ import { CANVAS_PRESETS, PLATFORM_GROUPS } from "@shared/designTypes";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import NewProjectDialog from "@/components/NewProjectDialog";
+import BillingSettings from "@/components/BillingSettings";
+import { ProBadge } from "@/components/UpgradePrompt";
+import { PRICING_PLANS, type PlanTier } from "@shared/subscriptionTypes";
 
 export default function Home() {
   const { user, loading, isAuthenticated } = useAuth();
@@ -675,7 +678,7 @@ function CustomerDashboard({ user, setLocation }: { user: any; setLocation: (pat
                 <TabsList className="bg-secondary">
                   <TabsTrigger value="profile">Profile</TabsTrigger>
                   <TabsTrigger value="preferences">Preferences</TabsTrigger>
-                  <TabsTrigger value="plan">Plan</TabsTrigger>
+                  <TabsTrigger value="plan">Plan & Billing</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="profile" className="mt-4 space-y-4">
@@ -731,40 +734,7 @@ function CustomerDashboard({ user, setLocation }: { user: any; setLocation: (pat
                 </TabsContent>
 
                 <TabsContent value="plan" className="mt-4">
-                  <Card className="bg-card border-border">
-                    <CardContent className="p-6 space-y-4">
-                      <div className="flex items-center gap-3 mb-4">
-                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center">
-                          <Crown className="w-6 h-6 text-white" />
-                        </div>
-                        <div>
-                          <p className="text-lg font-bold text-foreground capitalize">{user?.plan || "Free"} Plan</p>
-                          <p className="text-xs text-muted-foreground">Current subscription</p>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-3 gap-4">
-                        {[
-                          { plan: "Free", price: "$0", features: ["5 projects", "500MB storage", "Basic AI", "Standard export"] },
-                          { plan: "Pro", price: "$12/mo", features: ["Unlimited projects", "10GB storage", "Advanced AI", "All exports", "Social publishing", "Brand kits"] },
-                          { plan: "Enterprise", price: "Custom", features: ["Everything in Pro", "Custom storage", "API access", "Priority support", "Team features", "White label"] },
-                        ].map((tier) => (
-                          <Card key={tier.plan} className={`border-border ${user?.plan === tier.plan.toLowerCase() ? "ring-2 ring-primary" : ""}`}>
-                            <CardContent className="p-4">
-                              <p className="text-sm font-bold text-foreground">{tier.plan}</p>
-                              <p className="text-lg font-bold text-primary mt-1">{tier.price}</p>
-                              <div className="mt-3 space-y-1.5">
-                                {tier.features.map((f) => (
-                                  <p key={f} className="text-[10px] text-muted-foreground flex items-center gap-1">
-                                    <span className="text-green-500">&#10003;</span> {f}
-                                  </p>
-                                ))}
-                              </div>
-                            </CardContent>
-                          </Card>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
+                  <BillingSettings user={user} />
                 </TabsContent>
               </Tabs>
             </div>
@@ -1166,9 +1136,14 @@ function LandingPage() {
           <h1 className="text-lg font-bold text-foreground">ManuScript Studio</h1>
         </div>
         <div className="flex-1" />
-        <Button asChild>
-          <a href={getLoginUrl()}>Get Started</a>
-        </Button>
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" asChild>
+            <a href="/pricing">Pricing</a>
+          </Button>
+          <Button asChild>
+            <a href={getLoginUrl()}>Get Started</a>
+          </Button>
+        </div>
       </header>
 
       <main>
@@ -1191,6 +1166,11 @@ function LandingPage() {
               <Button size="lg" asChild>
                 <a href={getLoginUrl()} className="gap-2">
                   Start Designing <ArrowRight className="w-4 h-4" />
+                </a>
+              </Button>
+              <Button size="lg" variant="outline" className="gap-2 bg-transparent" asChild>
+                <a href="/pricing">
+                  <Crown className="w-4 h-4" /> View Pricing
                 </a>
               </Button>
               <Button size="lg" variant="outline" className="gap-2 bg-transparent" asChild>

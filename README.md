@@ -8,6 +8,7 @@
 
 - **Customer Portal & Dashboard**: A complete workspace with persistent storage for projects, uploads, templates, brand kits, and activity tracking.
 - **Massive Branding Kit**: 1000+ fonts, color palettes, gradients, logos, and brand voice guidelines.
+- **Stripe-Powered Subscriptions**: Free, Pro, and Business tiers with Stripe Checkout, billing portal, webhook handling, and feature gating.
 - **Social Media Integration**: Direct publishing to Facebook and Instagram (with architecture ready for TikTok, X, LinkedIn, Pinterest, and YouTube).
 - **Unrestricted AI Assistant**: A "Manus-style" creative partner that can critique designs, generate copy, suggest layouts, and directly apply colors/fonts to your canvas.
 - **AI Elements Generation**: Dynamically generate backgrounds, layouts, and design elements using AI.
@@ -68,9 +69,16 @@ S3_PUBLIC_URL="your_s3_public_url"
 # Authentication (JWT Secret for sessions)
 JWT_SECRET="your_secure_random_string"
 
+# Stripe Payments (Required for paid subscriptions)
+STRIPE_SECRET_KEY="sk_test_your_stripe_secret_key"
+STRIPE_WEBHOOK_SECRET="whsec_your_webhook_signing_secret"
+
 # Social Media OAuth (Optional: Required only if using social publishing)
 FACEBOOK_APP_ID="your_facebook_app_id"
 FACEBOOK_APP_SECRET="your_facebook_app_secret"
+
+# App URL (Used for Stripe redirect URLs)
+APP_URL="http://localhost:3000"
 ```
 
 ### 4. Database Setup & Seeding
@@ -108,6 +116,21 @@ The server will start (typically on `http://localhost:3000`). The backend Expres
 1. Go to [BFL (Black Forest Labs)](https://bfl.ai/).
 2. Generate an API key.
 3. Add it to `.env` as `BFL_API_KEY`.
+
+### Stripe Payments & Subscriptions
+To enable paid plans (Pro, Business) with Stripe Checkout:
+1. Go to the [Stripe Dashboard](https://dashboard.stripe.com/).
+2. Get your **Secret Key** from Developers > API Keys. Add it to `.env` as `STRIPE_SECRET_KEY`.
+3. Create Products and Prices in Stripe for your plans:
+   - **Pro Monthly**: e.g., `$12/month` — copy the Price ID (starts with `price_`)
+   - **Pro Yearly**: e.g., `$99/year`
+   - **Business Monthly**: e.g., `$29/month`
+   - **Business Yearly**: e.g., `$249/year`
+4. Update the `monthlyPriceId` and `yearlyPriceId` fields in `subscriptionTypes.ts` with your actual Stripe Price IDs.
+5. Set up a Webhook in Stripe Dashboard > Developers > Webhooks:
+   - Endpoint URL: `https://yourdomain.com/api/stripe/webhook`
+   - Events to listen for: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.payment_succeeded`, `invoice.payment_failed`
+6. Copy the Webhook Signing Secret and add it to `.env` as `STRIPE_WEBHOOK_SECRET`.
 
 ### Social Media Publishing (Facebook & Instagram)
 To enable the Social Media Panel's direct publishing features:
@@ -172,6 +195,8 @@ CMD ["npm", "start"]
 - **`/server/schema.ts`**: Drizzle ORM database schema defining all tables.
 - **`/server/db.ts`**: Database helper functions.
 - **`/shared/designTypes.ts`**: Shared TypeScript interfaces, canvas presets, and brand kit constants used by both frontend and backend.
+- **`/shared/subscriptionTypes.ts`**: Pricing plans, feature gates, and subscription type definitions.
+- **`/server/stripe.ts`**: Stripe SDK integration for checkout, billing portal, and subscription management.
 
 ---
 

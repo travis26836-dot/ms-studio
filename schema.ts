@@ -10,7 +10,8 @@ export const users = mysqlTable("users", {
   bio: text("bio"),
   company: varchar("company", { length: 255 }),
   website: varchar("website", { length: 512 }),
-  plan: mysqlEnum("plan", ["free", "pro", "enterprise"]).default("free").notNull(),
+  plan: mysqlEnum("plan", ["free", "pro", "business"]).default("free").notNull(),
+  stripeCustomerId: varchar("stripeCustomerId", { length: 255 }),
   storageUsed: int("storageUsed").default(0),
   storageLimit: int("storageLimit").default(524288000), // 500MB default
   preferences: json("preferences"), // UI preferences, theme, etc.
@@ -21,6 +22,48 @@ export const users = mysqlTable("users", {
 
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
+
+/** Stripe subscriptions */
+export const subscriptions = mysqlTable("subscriptions", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  stripeCustomerId: varchar("stripeCustomerId", { length: 255 }).notNull(),
+  stripeSubscriptionId: varchar("stripeSubscriptionId", { length: 255 }),
+  stripePriceId: varchar("stripePriceId", { length: 255 }),
+  stripeProductId: varchar("stripeProductId", { length: 255 }),
+  plan: mysqlEnum("plan", ["free", "pro", "business"]).default("free").notNull(),
+  status: mysqlEnum("status", ["active", "canceled", "past_due", "trialing", "incomplete", "incomplete_expired", "paused", "unpaid"]).default("active").notNull(),
+  currentPeriodStart: timestamp("currentPeriodStart"),
+  currentPeriodEnd: timestamp("currentPeriodEnd"),
+  cancelAtPeriodEnd: boolean("cancelAtPeriodEnd").default(false),
+  canceledAt: timestamp("canceledAt"),
+  trialStart: timestamp("trialStart"),
+  trialEnd: timestamp("trialEnd"),
+  metadata: json("metadata"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Subscription = typeof subscriptions.$inferSelect;
+export type InsertSubscription = typeof subscriptions.$inferInsert;
+
+/** Payment history */
+export const payments = mysqlTable("payments", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  stripePaymentIntentId: varchar("stripePaymentIntentId", { length: 255 }),
+  stripeInvoiceId: varchar("stripeInvoiceId", { length: 255 }),
+  amount: int("amount").notNull(),
+  currency: varchar("currency", { length: 3 }).default("usd").notNull(),
+  status: mysqlEnum("status", ["succeeded", "pending", "failed", "refunded"]).default("pending").notNull(),
+  description: text("description"),
+  receiptUrl: text("receiptUrl"),
+  metadata: json("metadata"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type Payment = typeof payments.$inferSelect;
+export type InsertPayment = typeof payments.$inferInsert;
 
 /** Design projects (canvases) */
 export const projects = mysqlTable("projects", {

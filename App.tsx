@@ -7,6 +7,7 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
 import EditorPage from "./pages/EditorPage";
 import ApiDocs from "./pages/ApiDocs";
+import PricingPage from "./pages/PricingPage";
 
 function Router() {
   return (
@@ -14,6 +15,7 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/dashboard" component={Home} />
       <Route path="/editor" component={EditorPage} />
+      <Route path="/pricing" component={PricingPage} />
       <Route path="/api-docs" component={ApiDocs} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
