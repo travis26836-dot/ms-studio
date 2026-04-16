@@ -21,7 +21,7 @@
 Before you begin, ensure you have the following installed:
 - **Node.js** (v18 or higher recommended)
 - **pnpm** (or npm/yarn)
-- **MySQL** compatible database (e.g., TiDB, PlanetScale, or local MySQL 8+)
+- A **Neon** account — free tier at [neon.tech](https://neon.tech)
 - A **GitHub** account (for cloning)
 
 ---
@@ -42,57 +42,39 @@ pnpm install
 ```
 
 ### 3. Environment Variables
-Create a `.env` file in the root directory and configure the following variables. 
+Copy `.env.example` to `.env` and fill in your values:
+
+```bash
+cp .env.example .env
+```
+
+The critical variable is your **Neon connection string**:
 
 ```env
-# Database Configuration
-DATABASE_URL="mysql://user:password@host:port/dbname"
-
-# Server Configuration
-PORT=3000
-NODE_ENV="development"
-
-# AI Integration (OpenAI or compatible API)
-OPENAI_API_KEY="your_openai_api_key"
-OPENAI_BASE_URL="https://api.openai.com/v1" # Optional: Override for proxy/compatible endpoints
-
-# Image Generation (FLUX/BFL API)
-BFL_API_KEY="your_bfl_api_key"
-
-# Storage (S3-compatible storage for uploads/exports)
-S3_ACCESS_KEY="your_s3_access_key"
-S3_SECRET_KEY="your_s3_secret_key"
-S3_BUCKET="your_bucket_name"
-S3_ENDPOINT="your_s3_endpoint"
-S3_PUBLIC_URL="your_s3_public_url"
-
-# Authentication (JWT Secret for sessions)
-JWT_SECRET="your_secure_random_string"
-
-# Stripe Payments (Required for paid subscriptions)
-STRIPE_SECRET_KEY="sk_test_your_stripe_secret_key"
-STRIPE_WEBHOOK_SECRET="whsec_your_webhook_signing_secret"
-
-# Social Media OAuth (Optional: Required only if using social publishing)
-FACEBOOK_APP_ID="your_facebook_app_id"
-FACEBOOK_APP_SECRET="your_facebook_app_secret"
-
-# App URL (Used for Stripe redirect URLs)
-APP_URL="http://localhost:3000"
+# Neon PostgreSQL — copy from your Neon project dashboard → Connection Details
+DATABASE_URL="postgresql://user:password@ep-xxx-xxx.us-east-2.aws.neon.tech/neondb?sslmode=require"
 ```
 
 ### 4. Database Setup & Seeding
-The project uses Drizzle ORM. You need to push the schema to your database and seed it with the initial templates and assets.
+The project uses Drizzle ORM with **Neon PostgreSQL**. Push the schema and seed initial data:
 
 ```bash
-# Push the schema to the database
-npx drizzle-kit push:mysql
+# Push the schema to your Neon database
+npx drizzle-kit push
 
-# Seed the database with templates, assets, and presets
-node seed.mjs
+# Seed with basic templates and assets
+npm run db:seed
+
+# Or seed with the full template library (menus, invitations, certificates)
+npm run db:seed:all
 ```
 
-*(Note: Ensure your `DATABASE_URL` is correctly set before running these commands).*
+> **Tip:** You can also run the raw SQL migration directly against your Neon database:
+> ```bash
+> psql $DATABASE_URL -f 0001_neon_init.sql
+> ```
+
+*(Ensure your `DATABASE_URL` is set before running these commands.)*
 
 ### 5. Start the Development Server
 ```bash

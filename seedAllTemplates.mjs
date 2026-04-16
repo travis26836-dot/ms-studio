@@ -1,9 +1,9 @@
 /**
  * Combined Template Seeder
  * Imports all template files and inserts them into the database.
- * Run: node server/seedAllTemplates.mjs
+ * Run: node seedAllTemplates.mjs
  */
-import mysql from 'mysql2/promise';
+import { neon } from '@neondatabase/serverless';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -20,7 +20,7 @@ import { certificateTemplates } from './seedCertificates.mjs';
 import { moreCertificates } from './seedMoreCerts.mjs';
 
 async function seed() {
-  const conn = await mysql.createConnection(process.env.DATABASE_URL);
+  const sql = neon(process.env.DATABASE_URL);
   
   // Collect all templates, filtering out any that might be incomplete
   const allTemplates = [];
@@ -95,29 +95,31 @@ async function seed() {
       const tagsJson = JSON.stringify(t.tags || []);
       
       // Check if template already exists by name
-      const [existing] = await conn.execute(
-        'SELECT id FROM templates WHERE name = ?',
-        [t.name]
-      );
+      const existing = await sql`SELECT id FROM templates WHERE name = ${t.name}`;
       
       if (existing.length > 0) {
         // Update existing template
-        await conn.execute(
-          `UPDATE templates SET description = ?, category = ?, subcategory = ?, 
-           canvasWidth = ?, canvasHeight = ?, canvasData = ?, tags = ?
-           WHERE name = ?`,
-          [t.description, t.category, t.subcategory || null, 
-           t.canvasWidth, t.canvasHeight, canvasJson, tagsJson, t.name]
-        );
+        await sql`
+          UPDATE templates
+          SET description = ${t.description},
+              category = ${t.category},
+              subcategory = ${t.subcategory || null},
+              "canvasWidth" = ${t.canvasWidth},
+              "canvasHeight" = ${t.canvasHeight},
+              "canvasData" = ${canvasJson},
+              tags = ${tagsJson}
+          WHERE name = ${t.name}
+        `;
         skipped++;
       } else {
         // Insert new template
-        await conn.execute(
-          `INSERT INTO templates (name, description, category, subcategory, canvasWidth, canvasHeight, canvasData, tags, createdAt)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
-          [t.name, t.description, t.category, t.subcategory || null,
-           t.canvasWidth, t.canvasHeight, canvasJson, tagsJson]
-        );
+        await sql`
+          INSERT INTO templates (name, description, category, subcategory, "canvasWidth", "canvasHeight", "canvasData", tags, "createdAt")
+          VALUES (
+            ${t.name}, ${t.description}, ${t.category}, ${t.subcategory || null},
+            ${t.canvasWidth}, ${t.canvasHeight}, ${canvasJson}, ${tagsJson}, NOW()
+          )
+        `;
         inserted++;
       }
     } catch (err) {
@@ -128,18 +130,14 @@ async function seed() {
   console.log(`\nDone! Inserted: ${inserted}, Updated: ${skipped}`);
   
   // Show final counts by category
-  const [counts] = await conn.execute(
-    `SELECT category, COUNT(*) as count FROM templates GROUP BY category ORDER BY category`
-  );
+  const counts = await sql`SELECT category, COUNT(*) as count FROM templates GROUP BY category ORDER BY category`;
   console.log('\nTemplates by category:');
   for (const row of counts) {
     console.log(`  ${row.category}: ${row.count}`);
   }
   
-  const [total] = await conn.execute('SELECT COUNT(*) as total FROM templates');
+  const total = await sql`SELECT COUNT(*) as total FROM templates`;
   console.log(`\nTotal templates in database: ${total[0].total}`);
-  
-  await conn.end();
 }
 
 seed().catch(err => {
