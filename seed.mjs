@@ -1,4 +1,4 @@
-import mysql from "mysql2/promise";
+import { neon } from "@neondatabase/serverless";
 import { templates as templateData } from "./seedTemplates.mjs";
 import dotenv from "dotenv";
 
@@ -11,24 +11,25 @@ if (!DATABASE_URL) {
 }
 
 async function seed() {
-  const conn = await mysql.createConnection(DATABASE_URL);
+  const sql = neon(DATABASE_URL);
 
   console.log("Seeding templates...");
   for (const t of templateData) {
     try {
-      await conn.execute(
-        `INSERT INTO templates (name, description, category, subcategory, canvasWidth, canvasHeight, canvasData, tags) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE name=VALUES(name)`,
-        [
-          t.name,
-          t.description || null,
-          t.category,
-          t.subcategory || null,
-          t.canvasWidth,
-          t.canvasHeight,
-          JSON.stringify(t.canvasData),
-          JSON.stringify(t.tags || []),
-        ]
-      );
+      await sql`
+        INSERT INTO templates (name, description, category, subcategory, "canvasWidth", "canvasHeight", "canvasData", tags)
+        VALUES (
+          ${t.name},
+          ${t.description || null},
+          ${t.category},
+          ${t.subcategory || null},
+          ${t.canvasWidth},
+          ${t.canvasHeight},
+          ${JSON.stringify(t.canvasData)},
+          ${JSON.stringify(t.tags || [])}
+        )
+        ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name
+      `;
       console.log(`  ✓ ${t.name}`);
     } catch (e) {
       console.error(`  ✗ ${t.name}: ${e.message}`);
@@ -61,10 +62,11 @@ async function seed() {
   console.log("\nSeeding assets...");
   for (const a of sampleAssets) {
     try {
-      await conn.execute(
-        `INSERT INTO assets (name, type, category, url, tags) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE name=VALUES(name)`,
-        [a.name, a.type, a.category, a.url, JSON.stringify(a.tags)]
-      );
+      await sql`
+        INSERT INTO assets (name, type, category, url, tags)
+        VALUES (${a.name}, ${a.type}, ${a.category}, ${a.url}, ${JSON.stringify(a.tags)})
+        ON CONFLICT (name) DO NOTHING
+      `;
       console.log(`  ✓ ${a.name}`);
     } catch (e) {
       console.error(`  ✗ ${a.name}: ${e.message}`);
@@ -72,7 +74,6 @@ async function seed() {
   }
 
   console.log("\nSeeding complete!");
-  await conn.end();
   process.exit(0);
 }
 

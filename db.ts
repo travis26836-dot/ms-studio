@@ -1,5 +1,6 @@
 import { eq, desc, and, like, sql, count } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/mysql2";
+import { drizzle } from "drizzle-orm/neon-http";
+import { neon } from "@neondatabase/serverless";
 import {
   InsertUser, users,
   projects, InsertProject,
@@ -23,7 +24,8 @@ let _db: ReturnType<typeof drizzle> | null = null;
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
-      _db = drizzle(process.env.DATABASE_URL);
+      const sql = neon(process.env.DATABASE_URL);
+      _db = drizzle(sql);
     } catch (error) {
       console.warn("[Database] Failed to connect:", error);
       _db = null;
@@ -57,7 +59,7 @@ export async function upsertUser(user: InsertUser): Promise<void> {
     else if (user.openId === ENV.ownerOpenId) { values.role = 'admin'; updateSet.role = 'admin'; }
     if (!values.lastSignedIn) values.lastSignedIn = new Date();
     if (Object.keys(updateSet).length === 0) updateSet.lastSignedIn = new Date();
-    await db.insert(users).values(values).onDuplicateKeyUpdate({ set: updateSet });
+    await db.insert(users).values(values).onConflictDoUpdate({ target: users.openId, set: updateSet });
   } catch (error) {
     console.error("[Database] Failed to upsert user:", error);
     throw error;
@@ -101,8 +103,8 @@ export async function getUserStats(userId: number) {
 export async function createProject(data: InsertProject) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const result = await db.insert(projects).values(data);
-  return { id: result[0].insertId };
+  const result = await db.insert(projects).values(data).returning({ id: projects.id });
+  return { id: result[0].id };
 }
 
 export async function getUserProjects(userId: number) {
@@ -165,8 +167,8 @@ export async function getUserFolders(userId: number) {
 export async function createFolder(data: InsertProjectFolder) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const result = await db.insert(projectFolders).values(data);
-  return { id: result[0].insertId };
+  const result = await db.insert(projectFolders).values(data).returning({ id: projectFolders.id });
+  return { id: result[0].id };
 }
 
 export async function updateFolder(id: number, data: Partial<InsertProjectFolder>) {
@@ -204,8 +206,8 @@ export async function getTemplateById(id: number) {
 export async function createTemplate(data: InsertTemplate) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const result = await db.insert(templates).values(data);
-  return { id: result[0].insertId };
+  const result = await db.insert(templates).values(data).returning({ id: templates.id });
+  return { id: result[0].id };
 }
 
 export async function searchTemplates(query: string) {
@@ -232,8 +234,8 @@ export async function searchAssets(type?: string, category?: string, query?: str
 export async function createAsset(data: InsertAsset) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const result = await db.insert(assets).values(data);
-  return { id: result[0].insertId };
+  const result = await db.insert(assets).values(data).returning({ id: assets.id });
+  return { id: result[0].id };
 }
 
 // ─── User Uploads ────────────────────────────────────────────
@@ -247,8 +249,8 @@ export async function getUserUploads(userId: number) {
 export async function createUserUpload(data: InsertUserUpload) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const result = await db.insert(userUploads).values(data);
-  return { id: result[0].insertId };
+  const result = await db.insert(userUploads).values(data).returning({ id: userUploads.id });
+  return { id: result[0].id };
 }
 
 export async function deleteUserUpload(id: number) {
@@ -268,8 +270,8 @@ export async function getUserBrandKits(userId: number) {
 export async function createBrandKit(data: InsertBrandKit) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const result = await db.insert(brandKits).values(data);
-  return { id: result[0].insertId };
+  const result = await db.insert(brandKits).values(data).returning({ id: brandKits.id });
+  return { id: result[0].id };
 }
 
 export async function updateBrandKit(id: number, data: Partial<InsertBrandKit>) {
@@ -305,8 +307,8 @@ export async function setDefaultBrandKit(userId: number, kitId: number) {
 export async function createAiGeneration(data: InsertAiGeneration) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const result = await db.insert(aiGenerations).values(data);
-  return { id: result[0].insertId };
+  const result = await db.insert(aiGenerations).values(data).returning({ id: aiGenerations.id });
+  return { id: result[0].id };
 }
 
 export async function updateAiGeneration(id: number, data: Partial<InsertAiGeneration>) {
@@ -348,8 +350,8 @@ export async function getSocialConnectionByPlatform(userId: number, platform: st
 export async function createSocialConnection(data: InsertSocialConnection) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const result = await db.insert(socialConnections).values(data);
-  return { id: result[0].insertId };
+  const result = await db.insert(socialConnections).values(data).returning({ id: socialConnections.id });
+  return { id: result[0].id };
 }
 
 export async function updateSocialConnection(id: number, data: Partial<InsertSocialConnection>) {
@@ -381,8 +383,8 @@ export async function getProjectPublishHistory(projectId: number) {
 export async function createPublishRecord(data: InsertPublishHistory) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const result = await db.insert(publishHistory).values(data);
-  return { id: result[0].insertId };
+  const result = await db.insert(publishHistory).values(data).returning({ id: publishHistory.id });
+  return { id: result[0].id };
 }
 
 export async function updatePublishRecord(id: number, data: Partial<InsertPublishHistory>) {
@@ -427,8 +429,8 @@ export async function getChatSession(id: number) {
 export async function createChatSession(data: InsertAiChatSession) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const result = await db.insert(aiChatSessions).values(data);
-  return { id: result[0].insertId };
+  const result = await db.insert(aiChatSessions).values(data).returning({ id: aiChatSessions.id });
+  return { id: result[0].id };
 }
 
 export async function updateChatSession(id: number, data: Partial<InsertAiChatSession>) {
@@ -476,8 +478,8 @@ export async function getSubscriptionByStripeSubId(stripeSubscriptionId: string)
 export async function createSubscription(data: InsertSubscription) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const result = await db.insert(subscriptions).values(data);
-  return { id: result[0].insertId };
+  const result = await db.insert(subscriptions).values(data).returning({ id: subscriptions.id });
+  return { id: result[0].id };
 }
 
 export async function updateSubscription(id: number, data: Partial<InsertSubscription>) {
@@ -501,8 +503,8 @@ export async function upsertSubscriptionByStripeCustomer(
       ...data,
       stripeCustomerId,
       userId: data.userId || 0,
-    } as InsertSubscription);
-    return result[0].insertId;
+    } as InsertSubscription).returning({ id: subscriptions.id });
+    return result[0].id;
   }
 }
 
@@ -528,8 +530,8 @@ export async function getUserByStripeCustomerId(stripeCustomerId: string) {
 export async function createPayment(data: InsertPayment) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const result = await db.insert(payments).values(data);
-  return { id: result[0].insertId };
+  const result = await db.insert(payments).values(data).returning({ id: payments.id });
+  return { id: result[0].id };
 }
 
 export async function getUserPayments(userId: number, limit = 20) {
