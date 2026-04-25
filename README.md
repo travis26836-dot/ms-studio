@@ -19,6 +19,7 @@
 ## 📋 Prerequisites
 
 Before you begin, ensure you have the following installed:
+
 - **Node.js** (v18 or higher recommended)
 - **pnpm** (or npm/yarn)
 - A **Neon** account — free tier at [neon.tech](https://neon.tech)
@@ -29,12 +30,14 @@ Before you begin, ensure you have the following installed:
 ## 🛠️ Local Setup & Installation
 
 ### 1. Clone the Repository
+
 ```bash
 git clone https://github.com/travis26836-dot/ms-studio.git
 cd ms-studio
 ```
 
 ### 2. Install Dependencies
+
 ```bash
 npm install
 # or
@@ -42,6 +45,7 @@ pnpm install
 ```
 
 ### 3. Environment Variables
+
 Copy `.env.example` to `.env` and fill in your values:
 
 ```bash
@@ -56,6 +60,7 @@ DATABASE_URL="postgresql://user:password@ep-xxx-xxx.us-east-2.aws.neon.tech/neon
 ```
 
 ### 4. Database Setup & Seeding
+
 The project uses Drizzle ORM with **Neon PostgreSQL**. Push the schema and seed initial data:
 
 ```bash
@@ -70,6 +75,7 @@ npm run db:seed:all
 ```
 
 > **Tip:** You can also run the raw SQL migration directly against your Neon database:
+>
 > ```bash
 > psql $DATABASE_URL -f 0001_neon_init.sql
 > ```
@@ -77,11 +83,13 @@ npm run db:seed:all
 *(Ensure your `DATABASE_URL` is set before running these commands.)*
 
 ### 5. Start the Development Server
+
 ```bash
 npm run dev
 # or
 pnpm dev
 ```
+
 The server will start (typically on `http://localhost:3000`). The backend Express server and the Vite frontend run concurrently.
 
 ---
@@ -89,18 +97,22 @@ The server will start (typically on `http://localhost:3000`). The backend Expres
 ## 🔑 Setting Up API Keys & Integrations
 
 ### AI Assistant (OpenAI)
+
 1. Go to the [OpenAI Platform](https://platform.openai.com/).
 2. Generate an API key.
 3. Add it to `.env` as `OPENAI_API_KEY`.
 *(The app uses the `invokeLLM` helper which automatically picks up this key).*
 
 ### AI Image Generation (FLUX/BFL)
+
 1. Go to [BFL (Black Forest Labs)](https://bfl.ai/).
 2. Generate an API key.
 3. Add it to `.env` as `BFL_API_KEY`.
 
 ### Stripe Payments & Subscriptions
+
 To enable paid plans (Pro, Business) with Stripe Checkout:
+
 1. Go to the [Stripe Dashboard](https://dashboard.stripe.com/).
 2. Get your **Secret Key** from Developers > API Keys. Add it to `.env` as `STRIPE_SECRET_KEY`.
 3. Create Products and Prices in Stripe for your plans:
@@ -115,7 +127,9 @@ To enable paid plans (Pro, Business) with Stripe Checkout:
 6. Copy the Webhook Signing Secret and add it to `.env` as `STRIPE_WEBHOOK_SECRET`.
 
 ### Social Media Publishing (Facebook & Instagram)
+
 To enable the Social Media Panel's direct publishing features:
+
 1. Go to the [Meta for Developers](https://developers.facebook.com/) portal.
 2. Create an App (Type: Business).
 3. Add the **Facebook Login** and **Instagram Graph API** products.
@@ -128,15 +142,19 @@ To enable the Social Media Panel's direct publishing features:
 ## 🚀 Production Deployment
 
 ### Building the Project
+
 To build the project for production, run:
+
 ```bash
 npm run build
 # or
 pnpm build
 ```
+
 This command compiles the TypeScript code, builds the Vite frontend into static files, and prepares the Express server.
 
 ### Running in Production
+
 In production, set `NODE_ENV="production"`. The Express server will automatically serve the static frontend files built by Vite.
 
 ```bash
@@ -149,13 +167,16 @@ node dist/index.js
 ### Deployment Platforms
 
 #### Vercel / Render / Railway
+
 1. Connect your GitHub repository.
 2. Set the Build Command to `npm run build`.
 3. Set the Start Command to `npm start`.
 4. Add all the environment variables from your `.env` file into the platform's environment settings.
 
 #### Docker
+
 If you prefer Docker, you can create a standard Node.js Dockerfile:
+
 ```dockerfile
 FROM node:18-alpine
 WORKDIR /app
@@ -183,4 +204,5 @@ CMD ["npm", "start"]
 ---
 
 ## 📝 License
+
 This project is proprietary and built specifically for the ManuScript Studio platform.
